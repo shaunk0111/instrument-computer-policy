@@ -302,7 +302,7 @@ function assign-firefox-desktop {
         
         # Private Browser link
 
-        $ARGS_PRIVATE = "-private-window sydney.edu.au"
+        $ARGS_PRIVATE = "-private-window ***"
 
         $WshShell_Private = New-Object -comObject WScript.Shell
 
@@ -1035,5 +1035,88 @@ function install-sc-app ($appName) {
     };
 
     $output | Format-Table PSComputerName,SoftwareCenter,State
+
+}
+
+
+function uninstall-base-apps ($appName) {
+  
+
+    $RemoteResults = Invoke-Command -Credential $cred -ComputerName $computerTargets -ScriptBlock {
+	
+			# Uninstall Adobe Creative Cloud
+
+			Write-Host -NoNewLine 'Uninstall Adobe Creative Cloud';
+
+			$adobeApp = Get-WmiObject -Class Win32_Product -Filter "Name = 'Adobe Creative Cloud'"
+
+			$adobeApp.Uninstall()
+
+
+			# Uninstall Teams Machine-Wide Installer
+
+			Write-Host -NoNewLine 'Uninstall Teams Machine-Wide Installer';
+
+			$adobeApp = Get-WmiObject -Class Win32_Product -Filter "Name = 'Teams Machine-Wide Installer'"
+
+			$adobeApp.Uninstall()
+
+
+			# Uninstall Teams Machine-Wide Installer
+
+			Write-Host -NoNewLine 'Uninstall Teams Machine-Wide Installer';
+
+			$adobeApp = Get-WmiObject -Class Win32_Product -Filter "Name = 'Microsoft Teams'"
+
+			$adobeApp.Uninstall()
+    }
+
+}
+
+
+function enable-remote-powershell {
+
+	# Enable powerhshell scripts  
+	Set-ExecutionPolicy Unrestricted
+
+	# Enable remote powershell access 
+	Enable-PSRemoting –force 
+	 
+	# Set start mode to automatic Set-Service WinRM -StartMode Automatic 
+	Set-Service WinRM -StartMode Automatic  
+	 
+	# Verify start mode and state - it should be running  
+	$WinRM = Get-WmiObject -Class win32_service | Where-Object {$_.name -like "WinRM"} 
+
+	New-NetFirewallRule -DisplayName "Allow Remote Managment" -Direction Inbound -Program $WinRM -RemoteAddress Intranet -Action Allow
+
+	<# A common error occurs with Network connections
+
+	Set Network connection type to private (if set public) 
+
+	Run secpol.msc. -> Network List manager policies -> Network Tap -> Set to private 	#>
+
+}
+	
+	
+function enable-ssh {
+
+
+	# Install the OpenSSH Client
+	Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+
+	# Install the OpenSSH Server
+	Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+
+	Start-Service sshd
+
+	Set-Service -Name sshd -StartupType 'Automatic'
+
+	# Confirm the Firewall rule is configured. It should be created automatically by setup. 
+	Get-NetFirewallRule -Name *ssh*
+
+	# There should be a firewall rule named "OpenSSH-Server-In-TCP", which should be enabled
+	# If the firewall does not exist, create one
+	New-NetFirewallRule -Name sshd -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
 
 }
